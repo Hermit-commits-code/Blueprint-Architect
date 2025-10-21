@@ -131,7 +131,7 @@ function renderTemplate(
 }
 
 // --- Read Blueprints Config ---
-async function getBlueprints(
+export async function getBlueprints(
   workspaceRoot: vscode.Uri,
 ): Promise<BlueprintConfig | null> {
   try {
