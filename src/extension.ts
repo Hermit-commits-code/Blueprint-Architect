@@ -1,5 +1,8 @@
 // --- Scaffold Blueprint Config ---
 async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
+  vscode.window.showInformationMessage(
+    'Blueprint Architect: scaffoldBlueprintConfig command triggered.',
+  );
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     vscode.window.showErrorMessage(
@@ -7,7 +10,14 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
     );
     return;
   }
-  const workspaceRoot = workspaceFolders[0].uri;
+  // Multi-root support: find the workspace folder containing the targetUri
+  let workspaceRoot = workspaceFolders[0].uri;
+  for (const folder of workspaceFolders) {
+    if (targetUri.fsPath.startsWith(folder.uri.fsPath)) {
+      workspaceRoot = folder.uri;
+      break;
+    }
+  }
   const configPath = vscode.Uri.file(
     path.join(workspaceRoot.fsPath, '.blueprint-architect.json'),
   );
@@ -27,7 +37,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React from 'react';\n\nconst {{Name_pascalCase}} = () => {\n  return <div>{{Name_pascalCase}}</div>;\n};\n\nexport default {{Name_pascalCase}};",
+            "import React from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nconst {{Name_pascalCase}} = () => {\n  return <div className={styles.root}>{{Name_pascalCase}}</div>;\n};\n\nexport default {{Name_pascalCase}};",
         },
         {
           path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
@@ -40,7 +50,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React from 'react';\n\nexport const {{Name_pascalCase}} = () => <div>{{Name_pascalCase}}</div>;",
+            "import React from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nexport const {{Name_pascalCase}} = () => <div className={styles.root}>{{Name_pascalCase}}</div>;",
         },
         {
           path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
@@ -53,7 +63,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React, { Component } from 'react';\n\nexport class {{Name_pascalCase}} extends Component {\n  render() {\n    return <div>{{Name_pascalCase}}</div>;\n  }\n}",
+            "import React, { Component } from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nexport class {{Name_pascalCase}} extends Component {\n  render() {\n    return <div className={styles.root}>{{Name_pascalCase}}</div>;\n  }\n}",
         },
         {
           path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
@@ -275,7 +285,14 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
     );
     return;
   }
-  const workspaceRoot = workspaceFolders[0].uri;
+  // Multi-root support: find the workspace folder containing the target fileUri
+  let workspaceRoot = workspaceFolders[0].uri;
+  for (const folder of workspaceFolders) {
+    if (fileUri.fsPath.startsWith(folder.uri.fsPath)) {
+      workspaceRoot = folder.uri;
+      break;
+    }
+  }
   const blueprints = await getBlueprints(workspaceRoot);
   if (!blueprints) return;
 
@@ -422,8 +439,10 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
       await vscode.workspace.fs.createDirectory(vscode.Uri.file(parentDir));
     } catch (err: any) {
       vscode.window.showWarningMessage(
-        `Failed to create directory for '${renderedPath}': ${
-          err?.message || err
+        `Blueprint Architect: Failed to create ${file.path}: ${
+          err && typeof err === 'object' && 'message' in err
+            ? (err as any).message
+            : String(err)
         }`,
       );
       continue;
@@ -470,17 +489,27 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
   );
 }
 
-// --- Extension Activation ---
 export function activate(context: vscode.ExtensionContext) {
+  vscode.window.showInformationMessage(
+    'Blueprint Architect: Extension activated.',
+  );
   const disposableGenerate = vscode.commands.registerCommand(
     'blueprintArchitect.generate',
-    generateFromTemplate,
+    async (fileUri: vscode.Uri) => {
+      vscode.window.showInformationMessage(
+        'Blueprint Architect: generateFromTemplate command triggered.',
+      );
+      await generateFromTemplate(fileUri);
+    },
   );
   const disposableScaffold = vscode.commands.registerCommand(
     'blueprintArchitect.scaffoldConfig',
-    scaffoldBlueprintConfig,
+    async (targetUri: vscode.Uri) => {
+      vscode.window.showInformationMessage(
+        'Blueprint Architect: scaffoldBlueprintConfig command triggered.',
+      );
+      await scaffoldBlueprintConfig(targetUri);
+    },
   );
   context.subscriptions.push(disposableGenerate, disposableScaffold);
 }
-
-export function deactivate() {}
