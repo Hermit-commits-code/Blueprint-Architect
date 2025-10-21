@@ -92,6 +92,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Buffer } from 'buffer';
+import { toPascalCase, toKebabCase, toSnakeCase } from './utils/case';
 
 // --- Type Definitions ---
 export interface BlueprintFile {
@@ -108,35 +109,11 @@ export interface BlueprintConfig {
 }
 
 // --- Case Transformation Utilities ---
-function toPascalCase(str: string): string {
-  return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/[^a-zA-Z0-9]+/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join('');
-}
+export function toPascalCase(str: string): string {
 
-function toKebabCase(str: string): string {
-  return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/([A-Z])/g, '-$1')
-    .toLowerCase()
-    .replace(/^-+|-+$/g, '')
-    .replace(/--+/g, '-');
-}
+export function toKebabCase(str: string): string {
 
-function toSnakeCase(str: string): string {
-  return str
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .replace(/[^a-zA-Z0-9]+/g, '_')
-    .replace(/([A-Z])/g, '_$1')
-    .toLowerCase()
-    .replace(/^_+|_+$/g, '')
-    .replace(/__+/g, '_');
-}
+export function toSnakeCase(str: string): string {
 
 // --- Case Transform Aggregator ---
 function applyCaseTransforms(name: string) {
