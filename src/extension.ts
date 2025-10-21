@@ -1,3 +1,84 @@
+// --- Scaffold Blueprint Config ---
+async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage(
+      'Blueprint Architect: No workspace is open.',
+    );
+    return;
+  }
+  const workspaceRoot = workspaceFolders[0].uri;
+  const configPath = vscode.Uri.file(
+    path.join(workspaceRoot.fsPath, '.blueprint-architect.json'),
+  );
+  try {
+    // Check if file already exists
+    await vscode.workspace.fs.stat(configPath);
+    vscode.window.showWarningMessage(
+      '.blueprint-architect.json already exists in workspace root.',
+    );
+    return;
+  } catch {
+    // File does not exist, proceed to create
+  }
+  const starterConfig = {
+    reactArrowComponent: {
+      files: [
+        {
+          path: '{{Name_pascalCase}}/index.tsx',
+          content:
+            "import React from 'react';\n\nconst {{Name_pascalCase}} = () => {\n  return <div>{{Name_pascalCase}}</div>;\n};\n\nexport default {{Name_pascalCase}};",
+        },
+        {
+          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
+          content: '.root { }',
+        },
+      ],
+    },
+    reactNamedExportComponent: {
+      files: [
+        {
+          path: '{{Name_pascalCase}}/index.tsx',
+          content:
+            "import React from 'react';\n\nexport const {{Name_pascalCase}} = () => <div>{{Name_pascalCase}}</div>;",
+        },
+        {
+          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
+          content: '.root { }',
+        },
+      ],
+    },
+    reactClassComponent: {
+      files: [
+        {
+          path: '{{Name_pascalCase}}/index.tsx',
+          content:
+            "import React, { Component } from 'react';\n\nexport class {{Name_pascalCase}} extends Component {\n  render() {\n    return <div>{{Name_pascalCase}}</div>;\n  }\n}",
+        },
+        {
+          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
+          content: '.root { }',
+        },
+      ],
+    },
+    reactHook: {
+      files: [
+        {
+          path: 'hooks/use{{Name_pascalCase}}.ts',
+          content:
+            "import { useState } from 'react';\n\nexport function use{{Name_pascalCase}}() {\n  const [state, setState] = useState(null);\n  // logic here\n  return state;\n}",
+        },
+      ],
+    },
+  };
+  await vscode.workspace.fs.writeFile(
+    configPath,
+    Buffer.from(JSON.stringify(starterConfig, null, 2), 'utf8'),
+  );
+  vscode.window.showInformationMessage(
+    'Blueprint Architect: .blueprint-architect.json created in workspace root.',
+  );
+}
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { Buffer } from 'buffer';
@@ -74,7 +155,61 @@ async function getBlueprints(
     );
     const data = await vscode.workspace.fs.readFile(configPath);
     const text = Buffer.from(data).toString('utf8');
-    return JSON.parse(text);
+    const config = JSON.parse(text);
+
+    // Validate config structure
+    if (typeof config !== 'object' || config === null) {
+      vscode.window.showErrorMessage(
+        'Blueprint Architect: Config must be a JSON object.',
+      );
+      return null;
+    }
+    for (const [key, blueprintObj] of Object.entries(config)) {
+      const blueprint = blueprintObj as { files?: any[] };
+      if (!blueprint || typeof blueprint !== 'object') {
+        vscode.window.showErrorMessage(
+          `Blueprint Architect: Blueprint '${key}' must be an object.`,
+        );
+        return null;
+      }
+      if (!Array.isArray(blueprint.files)) {
+        vscode.window.showErrorMessage(
+          `Blueprint Architect: Blueprint '${key}' is missing a 'files' array.`,
+        );
+        return null;
+      }
+      for (let i = 0; i < blueprint.files.length; i++) {
+        const file = blueprint.files[i] as {
+          path?: unknown;
+          content?: unknown;
+        };
+        if (!file || typeof file !== 'object') {
+          vscode.window.showErrorMessage(
+            `Blueprint Architect: File entry #${
+              i + 1
+            } in blueprint '${key}' must be an object.`,
+          );
+          return null;
+        }
+        if (typeof file.path !== 'string' || !file.path.trim()) {
+          vscode.window.showErrorMessage(
+            `Blueprint Architect: File entry #${
+              i + 1
+            } in blueprint '${key}' is missing a valid 'path' string.`,
+          );
+          return null;
+        }
+        if (typeof file.content !== 'string') {
+          vscode.window.showErrorMessage(
+            `Blueprint Architect: File entry #${
+              i + 1
+            } in blueprint '${key}' is missing a valid 'content' string.`,
+          );
+          return null;
+        }
+      }
+    }
+    return config;
   } catch (err: any) {
     if (err.code === 'FileNotFound' || err.message.includes('ENOENT')) {
       vscode.window.showErrorMessage(
@@ -158,20 +293,141 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
   });
   if (!name) return;
 
+  // Prompt for file extension if React blueprint
+  let selectedExtension = 'tsx';
+  const reactBlueprints = [
+    'reactComponent',
+    'reactArrowComponent',
+    'reactNamedExportComponent',
+    'reactClassComponent',
+    'reactHook',
+  ];
+  if (reactBlueprints.includes(selectedBlueprintKey)) {
+    const ext = await vscode.window.showQuickPick(
+      [
+        { label: '.tsx', description: 'TypeScript React (recommended)' },
+        { label: '.jsx', description: 'JavaScript React' },
+        { label: '.ts', description: 'TypeScript (no JSX)' },
+        { label: '.js', description: 'JavaScript (no JSX)' },
+      ],
+      {
+        placeHolder: 'Select file extension for generated React files',
+      },
+    );
+    if (!ext) return;
+    selectedExtension = ext.label.replace('.', '');
+  }
+
   const caseVars = applyCaseTransforms(name);
   const blueprint = blueprints[selectedBlueprintKey];
 
+  const INVALID_PATH_CHARS = /[<>:"|?*]/g;
+  const RESERVED_NAMES = [
+    'CON',
+    'PRN',
+    'AUX',
+    'NUL',
+    'COM1',
+    'COM2',
+    'COM3',
+    'COM4',
+    'COM5',
+    'COM6',
+    'COM7',
+    'COM8',
+    'COM9',
+    'LPT1',
+    'LPT2',
+    'LPT3',
+    'LPT4',
+    'LPT5',
+    'LPT6',
+    'LPT7',
+    'LPT8',
+    'LPT9',
+  ];
   for (const file of blueprint.files) {
-    const renderedPath = renderTemplate(file.path, caseVars);
+    let renderedPath = renderTemplate(file.path, caseVars);
+    // If React blueprint, replace .tsx/.jsx/.ts/.js extension in path with selectedExtension
+    if (reactBlueprints.includes(selectedBlueprintKey)) {
+      renderedPath = renderedPath.replace(
+        /\.(tsx|jsx|ts|js)$/i,
+        `.${selectedExtension}`,
+      );
+    }
     const renderedContent = renderTemplate(file.content, caseVars);
     const destPath = path.join(fileUri.fsPath, renderedPath);
     const destUri = vscode.Uri.file(destPath);
     const parentDir = path.dirname(destPath);
-    await vscode.workspace.fs.createDirectory(vscode.Uri.file(parentDir));
-    await vscode.workspace.fs.writeFile(
-      destUri,
-      Buffer.from(renderedContent, 'utf8'),
-    );
+
+    // Check for invalid path characters (Windows, but also good practice)
+    if (INVALID_PATH_CHARS.test(renderedPath)) {
+      vscode.window.showWarningMessage(
+        `Skipped file '${renderedPath}': path contains invalid characters.`,
+      );
+      continue;
+    }
+    // Check for reserved names (Windows)
+    const pathParts = renderedPath.split(/[\\\/]/);
+    if (pathParts.some((part) => RESERVED_NAMES.includes(part.toUpperCase()))) {
+      vscode.window.showWarningMessage(
+        `Skipped file '${renderedPath}': path contains reserved name.`,
+      );
+      continue;
+    }
+    // Prevent writing outside workspace
+    if (!destPath.startsWith(fileUri.fsPath)) {
+      vscode.window.showWarningMessage(
+        `Skipped file '${renderedPath}': path resolves outside target folder.`,
+      );
+      continue;
+    }
+
+    try {
+      await vscode.workspace.fs.createDirectory(vscode.Uri.file(parentDir));
+    } catch (err: any) {
+      vscode.window.showWarningMessage(
+        `Failed to create directory for '${renderedPath}': ${
+          err?.message || err
+        }`,
+      );
+      continue;
+    }
+
+    let shouldWrite = true;
+    try {
+      await vscode.workspace.fs.stat(destUri);
+      // File exists, prompt user
+      const answer = await vscode.window.showWarningMessage(
+        `File '${renderedPath}' already exists. Overwrite?`,
+        { modal: true },
+        'Overwrite',
+        'Skip',
+      );
+      if (answer !== 'Overwrite') {
+        shouldWrite = false;
+      }
+    } catch {
+      // File does not exist, proceed
+    }
+    if (shouldWrite) {
+      try {
+        await vscode.workspace.fs.writeFile(
+          destUri,
+          Buffer.from(renderedContent, 'utf8'),
+        );
+      } catch (err: any) {
+        if (err?.code === 'EACCES' || err?.code === 'EPERM') {
+          vscode.window.showWarningMessage(
+            `Permission denied: could not write '${renderedPath}'.`,
+          );
+        } else {
+          vscode.window.showWarningMessage(
+            `Failed to write file '${renderedPath}': ${err?.message || err}`,
+          );
+        }
+      }
+    }
   }
 
   vscode.window.showInformationMessage(
@@ -181,11 +437,15 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
 
 // --- Extension Activation ---
 export function activate(context: vscode.ExtensionContext) {
-  const disposable = vscode.commands.registerCommand(
+  const disposableGenerate = vscode.commands.registerCommand(
     'blueprintArchitect.generate',
     generateFromTemplate,
   );
-  context.subscriptions.push(disposable);
+  const disposableScaffold = vscode.commands.registerCommand(
+    'blueprintArchitect.scaffoldConfig',
+    scaffoldBlueprintConfig,
+  );
+  context.subscriptions.push(disposableGenerate, disposableScaffold);
 }
 
 export function deactivate() {}

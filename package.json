@@ -3,7 +3,7 @@
   "displayName": "Blueprint Architect",
   "description": "Generate multi-file component structures from blueprints.",
   "version": "0.1.0",
-  "publisher": "your-publisher-name",
+  "publisher": "JosephChu",
   "engines": {
     "vscode": ">=1.70.0"
   },
@@ -17,6 +17,11 @@
         "command": "blueprintArchitect.generate",
         "title": "Blueprint Architect: Generate Component",
         "category": "Blueprint Architect"
+      },
+      {
+        "command": "blueprintArchitect.scaffoldConfig",
+        "title": "Blueprint Architect: Create Blueprint Config",
+        "category": "Blueprint Architect"
       }
     ],
     "menus": {
@@ -25,6 +30,11 @@
           "command": "blueprintArchitect.generate",
           "when": "explorerResourceIsFolder",
           "group": "navigation@2"
+        },
+        {
+          "command": "blueprintArchitect.scaffoldConfig",
+          "when": "explorerResourceIsFolder",
+          "group": "navigation@3"
         }
       ]
     }
