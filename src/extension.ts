@@ -1,5 +1,5 @@
 // --- Scaffold Blueprint Config ---
-async function scaffoldBlueprintConfig(targetUri: vscode.Uri) {
+async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
   vscode.window.showInformationMessage(
     'Blueprint Architect: scaffoldBlueprintConfig command triggered.',
   );
@@ -109,14 +109,12 @@ export interface BlueprintConfig {
 }
 
 // --- Case Transformation Utilities ---
-export function toPascalCase(str: string): string {
-
-export function toKebabCase(str: string): string {
-
-export function toSnakeCase(str: string): string {
-
 // --- Case Transform Aggregator ---
-function applyCaseTransforms(name: string) {
+function applyCaseTransforms(name: string): {
+  Name_pascalCase: string;
+  Name_kebabCase: string;
+  Name_snakeCase: string;
+} {
   return {
     Name_pascalCase: toPascalCase(name),
     Name_kebabCase: toKebabCase(name),
@@ -142,7 +140,8 @@ async function getBlueprints(
     );
     const data = await vscode.workspace.fs.readFile(configPath);
     const text = Buffer.from(data).toString('utf8');
-    let config: any;
+
+    let config: unknown;
     try {
       config = JSON.parse(text);
     } catch (jsonErr) {
@@ -165,7 +164,9 @@ async function getBlueprints(
     }
 
     const blueprintNames = new Set<string>();
-    for (const [key, blueprintObj] of Object.entries(config)) {
+    for (const [key, blueprintObj] of Object.entries(
+      config as Record<string, unknown>,
+    )) {
       // Check for duplicate blueprint names
       if (blueprintNames.has(key)) {
         vscode.window.showErrorMessage(
@@ -175,7 +176,9 @@ async function getBlueprints(
       }
       blueprintNames.add(key);
 
-      const blueprint = blueprintObj as { files?: any[] };
+      const blueprint = blueprintObj as {
+        files?: { path?: unknown; content?: unknown }[];
+      };
       if (
         !blueprint ||
         typeof blueprint !== 'object' ||
@@ -229,17 +232,45 @@ async function getBlueprints(
         }
       }
     }
-    return config;
-  } catch (err: any) {
-    if (err.code === 'FileNotFound' || err.message.includes('ENOENT')) {
-      vscode.window.showErrorMessage(
-        'Blueprint Architect: .blueprint-architect.json not found in workspace root. Use "Blueprint Architect: Create Blueprint Config" to scaffold a starter config.',
-      );
+    // Type guard: ensure config is BlueprintConfig
+    if (
+      typeof config === 'object' &&
+      config !== null &&
+      !Array.isArray(config) &&
+      Object.values(config).every(
+        (bp) =>
+          typeof bp === 'object' &&
+          bp !== null &&
+          !Array.isArray(bp) &&
+          Array.isArray((bp as { files?: unknown }).files),
+      )
+    ) {
+      return config as BlueprintConfig;
+    }
+    vscode.window.showErrorMessage(
+      'Blueprint Architect: Config does not match expected blueprint structure. See README for example.',
+    );
+    return null;
+  } catch (err: unknown) {
+    if (
+      typeof err === 'object' &&
+      err !== null &&
+      ('code' in err || 'message' in err)
+    ) {
+      const code = (err as { code?: string }).code;
+      const message = (err as { message?: string }).message || '';
+      if (code === 'FileNotFound' || message.includes('ENOENT')) {
+        vscode.window.showErrorMessage(
+          'Blueprint Architect: .blueprint-architect.json not found in workspace root. Use "Blueprint Architect: Create Blueprint Config" to scaffold a starter config.',
+        );
+      } else {
+        vscode.window.showErrorMessage(
+          `Blueprint Architect: Unexpected error reading config: ${message}`,
+        );
+      }
     } else {
       vscode.window.showErrorMessage(
-        `Blueprint Architect: Unexpected error reading config: ${
-          err?.message || err
-        }`,
+        'Blueprint Architect: Unexpected error reading config.',
       );
     }
     return null;
@@ -254,7 +285,7 @@ function checkLicense(): boolean {
   // Replace with actual license check logic for production
   return false;
 }
-async function generateFromTemplate(fileUri: vscode.Uri) {
+async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     vscode.window.showErrorMessage(
@@ -397,7 +428,7 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
       continue;
     }
     // Check for reserved names (Windows)
-    const pathParts = renderedPath.split(/[\\\/]/);
+    const pathParts = renderedPath.split(/[\\/]/);
     if (pathParts.some((part) => RESERVED_NAMES.includes(part.toUpperCase()))) {
       vscode.window.showWarningMessage(
         `Skipped file '${renderedPath}': path contains reserved name.`,
@@ -414,13 +445,15 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
 
     try {
       await vscode.workspace.fs.createDirectory(vscode.Uri.file(parentDir));
-    } catch (err: any) {
+    } catch (err: unknown) {
+      let msg = '';
+      if (typeof err === 'object' && err !== null && 'message' in err) {
+        msg = String((err as { message?: string }).message);
+      } else {
+        msg = String(err);
+      }
       vscode.window.showWarningMessage(
-        `Blueprint Architect: Failed to create ${file.path}: ${
-          err && typeof err === 'object' && 'message' in err
-            ? (err as any).message
-            : String(err)
-        }`,
+        `Blueprint Architect: Failed to create ${file.path}: ${msg}`,
       );
       continue;
     }
@@ -447,14 +480,26 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
           destUri,
           Buffer.from(renderedContent, 'utf8'),
         );
-      } catch (err: any) {
-        if (err?.code === 'EACCES' || err?.code === 'EPERM') {
-          vscode.window.showWarningMessage(
-            `Permission denied: could not write '${renderedPath}'.`,
-          );
+      } catch (err: unknown) {
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          ('code' in err || 'message' in err)
+        ) {
+          const code = (err as { code?: string }).code;
+          const message = (err as { message?: string }).message || '';
+          if (code === 'EACCES' || code === 'EPERM') {
+            vscode.window.showWarningMessage(
+              `Permission denied: could not write '${renderedPath}'.`,
+            );
+          } else {
+            vscode.window.showWarningMessage(
+              `Failed to write file '${renderedPath}': ${message}`,
+            );
+          }
         } else {
           vscode.window.showWarningMessage(
-            `Failed to write file '${renderedPath}': ${err?.message || err}`,
+            `Failed to write file '${renderedPath}': ${String(err)}`,
           );
         }
       }
@@ -466,7 +511,7 @@ async function generateFromTemplate(fileUri: vscode.Uri) {
   );
 }
 
-export function activate(context: vscode.ExtensionContext) {
+export function activate(context: vscode.ExtensionContext): void {
   vscode.window.showInformationMessage(
     'Blueprint Architect: Extension activated.',
   );

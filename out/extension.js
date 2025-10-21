@@ -102,40 +102,14 @@ async function scaffoldBlueprintConfig(targetUri) {
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const buffer_1 = require("buffer");
+const case_1 = require("./utils/case");
 // --- Case Transformation Utilities ---
-function toPascalCase(str) {
-    return str
-        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-        .replace(/[^a-zA-Z0-9]+/g, ' ')
-        .split(' ')
-        .filter(Boolean)
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-        .join('');
-}
-function toKebabCase(str) {
-    return str
-        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-        .replace(/[^a-zA-Z0-9]+/g, '-')
-        .replace(/([A-Z])/g, '-$1')
-        .toLowerCase()
-        .replace(/^-+|-+$/g, '')
-        .replace(/--+/g, '-');
-}
-function toSnakeCase(str) {
-    return str
-        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/([A-Z])/g, '_$1')
-        .toLowerCase()
-        .replace(/^_+|_+$/g, '')
-        .replace(/__+/g, '_');
-}
 // --- Case Transform Aggregator ---
 function applyCaseTransforms(name) {
     return {
-        Name_pascalCase: toPascalCase(name),
-        Name_kebabCase: toKebabCase(name),
-        Name_snakeCase: toSnakeCase(name),
+        Name_pascalCase: (0, case_1.toPascalCase)(name),
+        Name_kebabCase: (0, case_1.toKebabCase)(name),
+        Name_snakeCase: (0, case_1.toSnakeCase)(name),
     };
 }
 // --- Simple Template Renderer ---
