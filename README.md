@@ -153,10 +153,13 @@ A: Currently, only the built-in case transforms are supported. Custom variables 
 A: Purchase a license through the extension’s marketplace page (feature coming soon).
 
 **Q: Does this work with multi-root workspaces?**
-A: Multi-root support is planned. For now, use a single workspace folder.
+A: Yes! Multi-root workspace support is fully implemented. The extension will select the correct workspace folder for config and file generation based on where you right-click.
+
+**Q: Are CSS modules automatically linked in React components?**
+A: Yes! When you use a React blueprint, the generated component will import and use its corresponding CSS module by default.
 
 **Q: What happens if a file already exists?**
-A: Overwrite protection is planned. Currently, files will be overwritten without prompt.
+A: The extension will prompt you before overwriting any existing files, so you never lose work by accident.
 
 **Q: How do I report bugs or request features?**
 A: Open an issue on GitHub or use the feedback link in the extension marketplace page.
@@ -175,7 +178,7 @@ Below are sample entries for `.blueprint-architect.json` supporting popular fram
     "files": [
       {
         "path": "{{Name_pascalCase}}/index.tsx",
-        "content": "import React from 'react';\n\nexport const {{Name_pascalCase}} = () => <div>{{Name_pascalCase}}</div>;"
+        "content": "import React from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nexport const {{Name_pascalCase}} = () => <div className={styles.root}>{{Name_pascalCase}}</div>;"
       },
       {
         "path": "{{Name_pascalCase}}/{{Name_kebabCase}}.module.css",
