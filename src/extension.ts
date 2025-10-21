@@ -1,12 +1,12 @@
 // --- Scaffold Blueprint Config ---
 async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
   vscode.window.showInformationMessage(
-    'Blueprint Architect: scaffoldBlueprintConfig command triggered.',
+    'Blueprint Architect: Ready to scaffold a new blueprint config! If you already have a config, you can skip this step.',
   );
   const workspaceFolders = vscode.workspace.workspaceFolders;
   if (!workspaceFolders || workspaceFolders.length === 0) {
     vscode.window.showErrorMessage(
-      'Blueprint Architect: No workspace is open.',
+      'Blueprint Architect: No workspace is open. Please open a folder in VS Code and try again.',
     );
     return;
   }
@@ -25,7 +25,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
     // Check if file already exists
     await vscode.workspace.fs.stat(configPath);
     vscode.window.showWarningMessage(
-      '.blueprint-architect.json already exists in workspace root.',
+      'A .blueprint-architect.json config already exists in your workspace root. You can edit it directly or delete it to scaffold a new one.',
     );
     return;
   } catch {
@@ -37,11 +37,11 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nconst {{Name_pascalCase}} = () => {\n  return <div className={styles.root}>{{Name_pascalCase}}</div>;\n};\n\nexport default {{Name_pascalCase}};",
+            "import React from 'react';\nimport './{{Name_pascalCase}}.css';\n\nconst {{Name_pascalCase}} = () => {\n  return <div>{{Name_pascalCase}}</div>;\n};\n\nexport default {{Name_pascalCase}};",
         },
         {
-          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
-          content: '.root { }',
+          path: '{{Name_pascalCase}}/{{Name_pascalCase}}.css',
+          content: '',
         },
       ],
     },
@@ -50,11 +50,11 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nexport const {{Name_pascalCase}} = () => <div className={styles.root}>{{Name_pascalCase}}</div>;",
+            "import React from 'react';\nimport './{{Name_pascalCase}}.css';\n\nexport const {{Name_pascalCase}} = () => <div>{{Name_pascalCase}}</div>;",
         },
         {
-          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
-          content: '.root { }',
+          path: '{{Name_pascalCase}}/{{Name_pascalCase}}.css',
+          content: '',
         },
       ],
     },
@@ -63,11 +63,11 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
         {
           path: '{{Name_pascalCase}}/index.tsx',
           content:
-            "import React, { Component } from 'react';\nimport styles from './{{Name_kebabCase}}.module.css';\n\nexport class {{Name_pascalCase}} extends Component {\n  render() {\n    return <div className={styles.root}>{{Name_pascalCase}}</div>;\n  }\n}",
+            "import React, { Component } from 'react';\nimport './{{Name_pascalCase}}.css';\n\nexport class {{Name_pascalCase}} extends Component {\n  render() {\n    return <div>{{Name_pascalCase}}</div>;\n  }\n}",
         },
         {
-          path: '{{Name_pascalCase}}/{{Name_kebabCase}}.module.css',
-          content: '.root { }',
+          path: '{{Name_pascalCase}}/{{Name_pascalCase}}.css',
+          content: '',
         },
       ],
     },
@@ -86,7 +86,7 @@ async function scaffoldBlueprintConfig(targetUri: vscode.Uri): Promise<void> {
     Buffer.from(JSON.stringify(starterConfig, null, 2), 'utf8'),
   );
   vscode.window.showInformationMessage(
-    'Blueprint Architect: .blueprint-architect.json created in workspace root.',
+    'Blueprint Architect: Successfully created .blueprint-architect.json in your workspace root! Edit this file to customize your blueprints.',
   );
 }
 import * as vscode from 'vscode';
@@ -146,7 +146,7 @@ export async function getBlueprints(
       config = JSON.parse(text);
     } catch (jsonErr) {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: Config file is not valid JSON. Please fix syntax errors in .blueprint-architect.json.',
+        'Blueprint Architect: Your config file contains invalid JSON. Please fix any syntax errors in .blueprint-architect.json (use an online JSON validator if needed).',
       );
       return null;
     }
@@ -158,7 +158,7 @@ export async function getBlueprints(
       Array.isArray(config)
     ) {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: Config must be a top-level JSON object (not array). See README for example.',
+        'Blueprint Architect: Config must be a top-level JSON object (not an array). Please see the README for an example config structure.',
       );
       return null;
     }
@@ -170,7 +170,7 @@ export async function getBlueprints(
       // Check for duplicate blueprint names
       if (blueprintNames.has(key)) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Duplicate blueprint name '${key}' found. Each blueprint key must be unique.`,
+          `Blueprint Architect: Duplicate blueprint name '${key}' found. Each blueprint key must be unique. Please check your .blueprint-architect.json.`,
         );
         return null;
       }
@@ -185,19 +185,19 @@ export async function getBlueprints(
         Array.isArray(blueprint)
       ) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Blueprint '${key}' must be an object with a 'files' array. See README for example.`,
+          `Blueprint Architect: The blueprint '${key}' must be an object with a 'files' array. Please see the README for an example.`,
         );
         return null;
       }
       if (!Array.isArray(blueprint.files)) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Blueprint '${key}' is missing a 'files' array. See README for example.`,
+          `Blueprint Architect: The blueprint '${key}' is missing a 'files' array. Please see the README for an example.`,
         );
         return null;
       }
       if (blueprint.files.length === 0) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Blueprint '${key}' has an empty 'files' array. At least one file entry is required.`,
+          `Blueprint Architect: The blueprint '${key}' has an empty 'files' array. Please add at least one file entry.`,
         );
         return null;
       }
@@ -210,7 +210,7 @@ export async function getBlueprints(
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' must be an object with 'path' and 'content' strings.`,
+            } in blueprint '${key}' must be an object with 'path' and 'content' strings. Please check your config.`,
           );
           return null;
         }
@@ -218,7 +218,7 @@ export async function getBlueprints(
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' is missing a valid 'path' string. See README for example.`,
+            } in blueprint '${key}' is missing a valid 'path' string. Please see the README for an example.`,
           );
           return null;
         }
@@ -226,7 +226,7 @@ export async function getBlueprints(
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' is missing a valid 'content' string. See README for example.`,
+            } in blueprint '${key}' is missing a valid 'content' string. Please see the README for an example.`,
           );
           return null;
         }
@@ -248,7 +248,7 @@ export async function getBlueprints(
       return config as BlueprintConfig;
     }
     vscode.window.showErrorMessage(
-      'Blueprint Architect: Config does not match expected blueprint structure. See README for example.',
+      'Blueprint Architect: Config does not match the expected blueprint structure. Please see the README for an example.',
     );
     return null;
   } catch (err: unknown) {
@@ -261,16 +261,16 @@ export async function getBlueprints(
       const message = (err as { message?: string }).message || '';
       if (code === 'FileNotFound' || message.includes('ENOENT')) {
         vscode.window.showErrorMessage(
-          'Blueprint Architect: .blueprint-architect.json not found in workspace root. Use "Blueprint Architect: Create Blueprint Config" to scaffold a starter config.',
+          'Blueprint Architect: .blueprint-architect.json not found in your workspace root. Use the "Blueprint Architect: Create Blueprint Config" command to scaffold a starter config.',
         );
       } else {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Unexpected error reading config: ${message}`,
+          `Blueprint Architect: Unexpected error reading config: ${message}. Please check your .blueprint-architect.json file.`,
         );
       }
     } else {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: Unexpected error reading config.',
+        'Blueprint Architect: Unexpected error reading config. Please check your .blueprint-architect.json file.',
       );
     }
     return null;
@@ -293,26 +293,9 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
     );
     return;
   }
-  // Multi-root support: find the workspace folder containing the target fileUri
-  let workspaceRoot = workspaceFolders[0].uri;
-  for (const folder of workspaceFolders) {
-    if (fileUri.fsPath.startsWith(folder.uri.fsPath)) {
-      workspaceRoot = folder.uri;
-      break;
-    }
-  }
-  const blueprints = await getBlueprints(workspaceRoot);
+  const blueprints = await getBlueprints(workspaceFolders[0].uri);
   if (!blueprints) return;
-
   const blueprintKeys = Object.keys(blueprints);
-  if (blueprintKeys.length === 0) {
-    vscode.window.showErrorMessage(
-      'Blueprint Architect: No blueprints found in config.',
-    );
-    return;
-  }
-
-  // Define free and paid blueprints
   const FREE_BLUEPRINT = 'reactComponent';
   const PAID_BLUEPRINTS = [
     'utilityFunction',
@@ -423,7 +406,7 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
     // Check for invalid path characters (Windows, but also good practice)
     if (INVALID_PATH_CHARS.test(renderedPath)) {
       vscode.window.showWarningMessage(
-        `Skipped file '${renderedPath}': path contains invalid characters.`,
+        `Skipped file '${renderedPath}': The path contains invalid characters (e.g., < > : " | ? *). Please update your blueprint config.`,
       );
       continue;
     }
@@ -431,14 +414,14 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
     const pathParts = renderedPath.split(/[\\/]/);
     if (pathParts.some((part) => RESERVED_NAMES.includes(part.toUpperCase()))) {
       vscode.window.showWarningMessage(
-        `Skipped file '${renderedPath}': path contains reserved name.`,
+        `Skipped file '${renderedPath}': The path contains a reserved name (e.g., CON, PRN, AUX, NUL, COM1, LPT1, etc.). Please update your blueprint config.`,
       );
       continue;
     }
     // Prevent writing outside workspace
     if (!destPath.startsWith(fileUri.fsPath)) {
       vscode.window.showWarningMessage(
-        `Skipped file '${renderedPath}': path resolves outside target folder.`,
+        `Skipped file '${renderedPath}': The path resolves outside the target folder. Please check your blueprint config for unintended '../' or absolute paths.`,
       );
       continue;
     }
@@ -453,7 +436,7 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
         msg = String(err);
       }
       vscode.window.showWarningMessage(
-        `Blueprint Architect: Failed to create ${file.path}: ${msg}`,
+        `Blueprint Architect: Failed to create folder for '${file.path}': ${msg}. Please check your permissions and try again.`,
       );
       continue;
     }
@@ -463,7 +446,7 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
       await vscode.workspace.fs.stat(destUri);
       // File exists, prompt user
       const answer = await vscode.window.showWarningMessage(
-        `File '${renderedPath}' already exists. Overwrite?`,
+        `File '${renderedPath}' already exists. Do you want to overwrite it? (Choosing 'Skip' will leave the existing file unchanged.)`,
         { modal: true },
         'Overwrite',
         'Skip',
@@ -507,7 +490,7 @@ async function generateFromTemplate(fileUri: vscode.Uri): Promise<void> {
   }
 
   vscode.window.showInformationMessage(
-    `Blueprint Architect: Component '${name}' generated successfully.`,
+    `Blueprint Architect: '${name}' generated successfully! You can now start editing your new component files.`,
   );
 }
 
