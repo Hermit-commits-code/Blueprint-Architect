@@ -155,26 +155,59 @@ async function getBlueprints(
     );
     const data = await vscode.workspace.fs.readFile(configPath);
     const text = Buffer.from(data).toString('utf8');
-    const config = JSON.parse(text);
-
-    // Validate config structure
-    if (typeof config !== 'object' || config === null) {
+    let config: any;
+    try {
+      config = JSON.parse(text);
+    } catch (jsonErr) {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: Config must be a JSON object.',
+        'Blueprint Architect: Config file is not valid JSON. Please fix syntax errors in .blueprint-architect.json.',
       );
       return null;
     }
+
+    // Validate config structure
+    if (
+      typeof config !== 'object' ||
+      config === null ||
+      Array.isArray(config)
+    ) {
+      vscode.window.showErrorMessage(
+        'Blueprint Architect: Config must be a top-level JSON object (not array). See README for example.',
+      );
+      return null;
+    }
+
+    const blueprintNames = new Set<string>();
     for (const [key, blueprintObj] of Object.entries(config)) {
-      const blueprint = blueprintObj as { files?: any[] };
-      if (!blueprint || typeof blueprint !== 'object') {
+      // Check for duplicate blueprint names
+      if (blueprintNames.has(key)) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Blueprint '${key}' must be an object.`,
+          `Blueprint Architect: Duplicate blueprint name '${key}' found. Each blueprint key must be unique.`,
+        );
+        return null;
+      }
+      blueprintNames.add(key);
+
+      const blueprint = blueprintObj as { files?: any[] };
+      if (
+        !blueprint ||
+        typeof blueprint !== 'object' ||
+        Array.isArray(blueprint)
+      ) {
+        vscode.window.showErrorMessage(
+          `Blueprint Architect: Blueprint '${key}' must be an object with a 'files' array. See README for example.`,
         );
         return null;
       }
       if (!Array.isArray(blueprint.files)) {
         vscode.window.showErrorMessage(
-          `Blueprint Architect: Blueprint '${key}' is missing a 'files' array.`,
+          `Blueprint Architect: Blueprint '${key}' is missing a 'files' array. See README for example.`,
+        );
+        return null;
+      }
+      if (blueprint.files.length === 0) {
+        vscode.window.showErrorMessage(
+          `Blueprint Architect: Blueprint '${key}' has an empty 'files' array. At least one file entry is required.`,
         );
         return null;
       }
@@ -183,11 +216,11 @@ async function getBlueprints(
           path?: unknown;
           content?: unknown;
         };
-        if (!file || typeof file !== 'object') {
+        if (!file || typeof file !== 'object' || Array.isArray(file)) {
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' must be an object.`,
+            } in blueprint '${key}' must be an object with 'path' and 'content' strings.`,
           );
           return null;
         }
@@ -195,7 +228,7 @@ async function getBlueprints(
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' is missing a valid 'path' string.`,
+            } in blueprint '${key}' is missing a valid 'path' string. See README for example.`,
           );
           return null;
         }
@@ -203,7 +236,7 @@ async function getBlueprints(
           vscode.window.showErrorMessage(
             `Blueprint Architect: File entry #${
               i + 1
-            } in blueprint '${key}' is missing a valid 'content' string.`,
+            } in blueprint '${key}' is missing a valid 'content' string. See README for example.`,
           );
           return null;
         }
@@ -213,11 +246,13 @@ async function getBlueprints(
   } catch (err: any) {
     if (err.code === 'FileNotFound' || err.message.includes('ENOENT')) {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: .blueprint-architect.json not found in workspace root.',
+        'Blueprint Architect: .blueprint-architect.json not found in workspace root. Use "Blueprint Architect: Create Blueprint Config" to scaffold a starter config.',
       );
     } else {
       vscode.window.showErrorMessage(
-        'Blueprint Architect: Error parsing .blueprint-architect.json.',
+        `Blueprint Architect: Unexpected error reading config: ${
+          err?.message || err
+        }`,
       );
     }
     return null;
